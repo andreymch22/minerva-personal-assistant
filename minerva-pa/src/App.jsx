@@ -11,7 +11,7 @@ function App() {
     startVideo()
     videoRef && loadModels()
 
-  }, [])
+  }, )
 
 
 
@@ -40,11 +40,18 @@ function App() {
     })
   }
 
+  async function faceMatcher(){
+    const labeledFaceDescriptors = await loadLabeledImages()
+    return new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6)
+  }
+
   const faceMyDetect = () => {
     setInterval(async () => {
-      const detections = await faceapi.detectAllFaces(videoRef.current,
-        new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
 
+      const detections = await faceapi.detectAllFaces(videoRef.current,
+        new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions().withFaceDescriptors()
+      
+      //const resizeDetections = faceapi.resiz
       // DRAW YOU FACE IN WEBCAM
       canvasRef.current.innerHtml = faceapi.createCanvasFromMedia(videoRef.current)
       faceapi.matchDimensions(canvasRef.current, {
@@ -56,13 +63,36 @@ function App() {
         width: 720,
         height: 560
       })
-
+      /*
+      const resizedDetections = faceapi.resizeResults(detections, resized)
+      const results = resizedDetections.map(d => faceMatcher().findBestMatch(d.descriptor))
+      results.forEach((result, i) => {
+        const box = resizedDetections[i].detection.box
+        const drawBox = new faceapi.draw.DrawBox(box, { label: result.toString() })
+        drawBox.draw(canvasRef.current)
+      })*/
       faceapi.draw.drawDetections(canvasRef.current, resized)
       faceapi.draw.drawFaceLandmarks(canvasRef.current, resized)
       faceapi.draw.drawFaceExpressions(canvasRef.current, resized)
 
 
     }, 1000)
+  }
+
+  function loadLabeledImages(){
+    const labels = ['Andrey', 'David']
+    return Promise.all(
+      labels.map(async label => {
+        const descriptions = []
+        for (let i = 1; i <= 2; i++) {
+          const img = await faceapi.fetchImage(`minerva-pa/src/assets/labeled_image/${label}/${i}`)
+          const detections = await faceapi.detectSingleFace(img)
+          .withFaceLandmarks().withFaceDescriptors()
+          descriptions.push(detections.descriptor)
+        }
+        return new faceapi.LabeledFaceDescriptors(label, descriptions)
+      })
+    )
   }
 
   return (
