@@ -5,7 +5,7 @@ const loadLabeledImages = () => {
         labels.map(async label => {
             const descriptions = []
             for (let i = 1; i <= 2; i++) {
-                const img = await faceapi.fetchImage(`minerva-pa/src/assets/labeled_image/${label}/${i}`)
+                const img = await faceapi.fetchImage(`assets/labeled_image/${label}/${i}.jpg`)
                 const detections = await faceapi.detectSingleFace(img)
                     .withFaceLandmarks().withFaceDescriptors()
                 descriptions.push(detections.descriptor)

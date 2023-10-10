@@ -37,14 +37,31 @@ function FacialRecognition() {
         })
     }
 
-    const faceMatcher = new faceapi.FaceMatcher(loadLabeledImages)
+    function getLabeledFaceDescriptions(){
+        const labels = ['Andrey', 'David']
+        return Promise.all(
+            labels.map(async label => {
+                const descriptions = []
+                for (let i = 1; i <= 2; i++) {
+                    const img = await faceapi.fetchImage(`./src/assets/labeled_image/${label}/${i}.jpg`)
+                    const detections = await faceapi
+                    .detectSingleFace(img,
+                        new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                    descriptions.push(detections.descriptor);
+                }
+                return new faceapi.LabeledFaceDescriptors(label, descriptions)
+            })
+        )
+    }
 
-    /*async function faceMatcher() {
-        const labeledFaceDescriptors = await loadLabeledImages()
-        return new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6)
-    }*/
-
-    const faceMyDetect = () => {
+    const faceMyDetect = async () => {
+        const labeledFaceDescriptors = await getLabeledFaceDescriptions()
+        const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors)
+        canvasRef.current.innerHtml = faceapi.createCanvasFromMedia(videoRef.current)
+        const displaySize = { width: 720, height:560 };
+        faceapi.matchDimensions(canvasRef.current, displaySize);
         setInterval(async () => {
 
             const detections = await faceapi.detectAllFaces(videoRef.current,
@@ -52,21 +69,20 @@ function FacialRecognition() {
                 .withFaceLandmarks()
                 .withFaceDescriptors()
 
+            const resized = faceapi.resizeResults(detections, {
+                width: 720,
+                height: 560
+            })
             //const resizeDetections = faceapi.resiz
             // DRAW YOU FACE IN WEBCAM
-            canvasRef.current.innerHtml = faceapi.createCanvasFromMedia(videoRef.current)
-            faceapi.matchDimensions(canvasRef.current, {
+            /*faceapi.matchDimensions(canvasRef.current, {
                 width: canvasRef.current.width,
                 height: canvasRef.current.height
-            })
-
-            const resized = faceapi.resizeResults(detections, {
-                width: canvasRef.current.width,
-                height: canvasRef.current.height
-            })
-
+            })*/
 
             const resizedDetections = faceapi.resizeResults(detections, resized)
+            canvasRef.current.getContext("2d").clearRect(0, 0, 720, 560)
+
             const results = resizedDetections.map(d => {
                 const bestMatch = faceMatcher.findBestMatch(d.descriptor)
                 console.log(bestMatch.toString())
@@ -74,30 +90,10 @@ function FacialRecognition() {
             results.forEach((result, i) => {
                 const box = resizedDetections[i].detection.box
                 const drawBox = new faceapi.draw.DrawBox(box, { label: result.toString() })
-                drawBox.draw(canvasRef.current, resized)
+                drawBox.draw(canvasRef.current)
             })
 
-            faceapi.draw.drawDetections(canvasRef.current, resized)
-            faceapi.draw.drawFaceLandmarks(canvasRef.current, resized)
-
-
-        }, 1000)
-    }
-
-    const loadLabeledImages = () => {
-        const labels = ['Andrey', 'David']
-        return Promise.all(
-            labels.map(async label => {
-                const descriptions = []
-                for (let i = 1; i <= 2; i++) {
-                    const img = await faceapi.fetchImage(`minerva-pa/src/assets/labeled_image/${label}/${i}`)
-                    const detections = await faceapi.detectSingleFace(img)
-                        .withFaceLandmarks().withFaceDescriptors()
-                    descriptions.push(detections.descriptor)
-                }
-                return new faceapi.LabeledFaceDescriptors(label, descriptions)
-            })
-        )
+        }, 100)
     }
 
     return (
@@ -105,7 +101,6 @@ function FacialRecognition() {
             <h1>Minerva P. A.</h1>
             <h2>Facial Login</h2>
             <div className="appvide">
-
                 <video crossOrigin="anonymous" ref={videoRef} autoPlay></video>
             </div>
             <canvas ref={canvasRef} width="720" height="560"
